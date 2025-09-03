@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-spotify-black text-white font-spotify;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-spotify-green hover:bg-green-600 text-white font-bold py-2 px-4 rounded-full transition-colors duration-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-spotify-gray hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-full transition-colors duration-200;
+  }
+  
+  .card {
+    @apply bg-spotify-gray rounded-lg p-6 shadow-lg;
+  }
+  
+  .input-field {
+    @apply bg-spotify-gray border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-spotify-green;
+  }
+}
