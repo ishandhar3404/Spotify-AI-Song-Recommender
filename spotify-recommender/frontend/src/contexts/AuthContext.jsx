@@ -20,22 +20,32 @@ export const AuthProvider = ({ children }) => {
     const checkAuth = async () => {
       try {
         const token = localStorage.getItem('spotify_access_token')
-        if (token) {
+        const userId = localStorage.getItem('user_id')
+        if (token && userId) {
           // Verify token with backend
-          const response = await fetch('/api/user/profile', {
+          const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/status`, {
             headers: {
+              'X-User-ID': userId,
               'Authorization': `Bearer ${token}`
             }
           })
           
           if (response.ok) {
-            const userData = await response.json()
-            setUser(userData)
-            setIsAuthenticated(true)
+            const authData = await response.json()
+            if (authData.authenticated) {
+              setUser(authData.user)
+              setIsAuthenticated(true)
+            } else {
+              // Token invalid, clear storage
+              localStorage.removeItem('spotify_access_token')
+              localStorage.removeItem('spotify_refresh_token')
+              localStorage.removeItem('user_id')
+            }
           } else {
             // Token invalid, clear storage
             localStorage.removeItem('spotify_access_token')
             localStorage.removeItem('spotify_refresh_token')
+            localStorage.removeItem('user_id')
           }
         }
       } catch (error) {
@@ -52,6 +62,7 @@ export const AuthProvider = ({ children }) => {
     setUser(userData)
     setIsAuthenticated(true)
     localStorage.setItem('spotify_access_token', tokens.access_token)
+    localStorage.setItem('user_id', userData.id)
     if (tokens.refresh_token) {
       localStorage.setItem('spotify_refresh_token', tokens.refresh_token)
     }
@@ -62,6 +73,7 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false)
     localStorage.removeItem('spotify_access_token')
     localStorage.removeItem('spotify_refresh_token')
+    localStorage.removeItem('user_id')
   }
 
   const value = {

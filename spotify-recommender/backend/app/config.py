@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # Spotify API settings
     SPOTIFY_CLIENT_ID: str = "f1319edcc9204b05aaf7465c1884aad7"
     SPOTIFY_CLIENT_SECRET: str = "8103e017f16b43fabe562fd51d2749ea"
-    SPOTIFY_REDIRECT_URI: str = "http://127.0.0.1:8888/callback"
+    SPOTIFY_REDIRECT_URI: str = "http://127.0.0.1:8000/auth/callback"
     
     # JWT settings
     SECRET_KEY: str = "your-secret-key-change-in-production"
@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     ]
     
     class Config:
-        env_file = ".env"
+        env_file = "env.local"
         case_sensitive = True
 
 # Create settings instance
@@ -62,8 +62,8 @@ settings = Settings()
 
 # Load environment variables
 def load_env():
-    """Load environment variables from .env file"""
-    env_file = ".env"
+    """Load environment variables from env.local file"""
+    env_file = "env.local"
     if os.path.exists(env_file):
         with open(env_file, "r") as f:
             for line in f:

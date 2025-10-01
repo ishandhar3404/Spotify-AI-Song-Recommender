@@ -11,13 +11,20 @@ const api = axios.create({
   },
 })
 
-// Request interceptor to add auth token
+// Request interceptor to add auth token and user ID
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('spotify_access_token')
+    const userId = localStorage.getItem('user_id')
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    
+    if (userId) {
+      config.headers['X-User-ID'] = userId
+    }
+    
     return config
   },
   (error) => {
@@ -32,10 +39,15 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Token expired, try to refresh
       const refreshToken = localStorage.getItem('spotify_refresh_token')
-      if (refreshToken) {
+      const userId = localStorage.getItem('user_id')
+      
+      if (refreshToken && userId) {
         try {
-          const refreshResponse = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-            refresh_token: refreshToken
+          const refreshResponse = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
+            headers: {
+              'X-User-ID': userId,
+              'Authorization': `Bearer ${localStorage.getItem('spotify_access_token')}`
+            }
           })
           
           const { access_token } = refreshResponse.data
@@ -45,11 +57,19 @@ api.interceptors.response.use(
           error.config.headers.Authorization = `Bearer ${access_token}`
           return api.request(error.config)
         } catch (refreshError) {
+          console.error('Token refresh failed:', refreshError)
           // Refresh failed, redirect to login
           localStorage.removeItem('spotify_access_token')
           localStorage.removeItem('spotify_refresh_token')
+          localStorage.removeItem('user_id')
           window.location.href = '/login'
         }
+      } else {
+        // No refresh token, redirect to login
+        localStorage.removeItem('spotify_access_token')
+        localStorage.removeItem('spotify_refresh_token')
+        localStorage.removeItem('user_id')
+        window.location.href = '/login'
       }
     }
     return Promise.reject(error)
@@ -59,7 +79,7 @@ api.interceptors.response.use(
 // API endpoints
 export const authAPI = {
   spotifyLogin: () => `${API_BASE_URL}/auth/spotify/login`,
-  spotifyCallback: (code) => `${API_BASE_URL}/auth/spotify/callback?code=${code}`,
+  spotifyCallback: (code) => `${API_BASE_URL}/auth/callback?code=${code}`,
   refreshToken: () => `${API_BASE_URL}/auth/refresh`,
 }
 

@@ -35,15 +35,17 @@ async def spotify_login():
         logger.error(f"Failed to generate Spotify OAuth URL: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to initiate Spotify login")
 
-@router.get("/spotify/callback")
-async def spotify_callback(code: str, state: Optional[str] = None, db: Session = Depends(get_db)):
+@router.get("/callback")
+async def spotify_callback(code: Optional[str] = None, state: Optional[str] = None, db: Session = Depends(get_db)):
     """
     Handle Spotify OAuth callback.
     Exchange authorization code for access tokens and create/update user.
     """
     try:
         if not code:
-            raise HTTPException(status_code=400, detail="Authorization code is required")
+            # If no code, redirect to frontend with error
+            frontend_url = f"{settings.ALLOWED_ORIGINS[0]}/auth/callback?success=false&error=No authorization code provided"
+            return RedirectResponse(url=frontend_url)
         
         # Exchange code for tokens
         token_info = spotify_service.get_tokens_from_code(code)
@@ -53,37 +55,29 @@ async def spotify_callback(code: str, state: Optional[str] = None, db: Session =
         
         # Get user profile from Spotify
         user_profile = spotify_service.get_user_profile(token_info['access_token'])
+        logger.info(f"Spotify user profile: {user_profile}")
         
         # Check if user exists in database
-        user = db.query(User).filter(User.spotify_id == user_profile['id']).first()
+        user = db.query(User).filter(User.id == user_profile['id']).first()
         
         if user:
             # Update existing user
             user.access_token = token_info['access_token']
             user.refresh_token = token_info.get('refresh_token')
             user.token_expires_at = datetime.fromisoformat(token_info['expires_at'])
-            user.last_login = datetime.utcnow()
             user.display_name = user_profile['display_name']
             user.email = user_profile.get('email')
-            user.country = user_profile.get('country')
-            user.followers = user_profile.get('followers', 0)
-            user.profile_image = user_profile.get('images', [{}])[0].get('url') if user_profile.get('images') else None
             
             logger.info(f"Updated existing user: {user_profile['display_name']}")
         else:
             # Create new user
             user = User(
-                spotify_id=user_profile['id'],
+                id=user_profile['id'],
                 display_name=user_profile['display_name'],
                 email=user_profile.get('email'),
-                country=user_profile.get('country'),
-                followers=user_profile.get('followers', 0),
-                profile_image=user_profile.get('images', [{}])[0].get('url') if user_profile.get('images') else None,
                 access_token=token_info['access_token'],
                 refresh_token=token_info.get('refresh_token'),
-                token_expires_at=datetime.fromisoformat(token_info['expires_at']),
-                created_at=datetime.utcnow(),
-                last_login=datetime.utcnow()
+                token_expires_at=datetime.fromisoformat(token_info['expires_at'])
             )
             db.add(user)
             logger.info(f"Created new user: {user_profile['display_name']}")
@@ -91,21 +85,20 @@ async def spotify_callback(code: str, state: Optional[str] = None, db: Session =
         # Commit changes
         db.commit()
         
-        # Return success response
-        return SpotifyCallbackResponse(
-            success=True,
-            message="Successfully authenticated with Spotify",
-            user_id=user.id,
-            display_name=user.display_name,
-            access_token=token_info['access_token'],
-            expires_at=token_info['expires_at']
-        )
+        # Redirect to frontend with success
+        from urllib.parse import quote
+        logger.info(f"User ID for redirect: {user.id} (type: {type(user.id)})")
+        frontend_url = f"{settings.ALLOWED_ORIGINS[0]}/auth/callback?success=true&user_id={quote(str(user.id))}&access_token={token_info['access_token']}"
+        logger.info(f"Redirecting to: {frontend_url}")
+        return RedirectResponse(url=frontend_url)
         
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error in Spotify callback: {str(e)}")
-        raise HTTPException(status_code=500, detail="Authentication failed")
+        # Redirect to frontend with error
+        frontend_url = f"{settings.ALLOWED_ORIGINS[0]}/auth/callback?success=false&error=Authentication failed"
+        return RedirectResponse(url=frontend_url)
 
 @router.post("/refresh")
 async def refresh_token(request: Request, db: Session = Depends(get_db)):
@@ -217,11 +210,8 @@ async def auth_status(request: Request, db: Session = Depends(get_db)):
                 "id": user.id,
                 "display_name": user.display_name,
                 "email": user.email,
-                "country": user.country,
-                "followers": user.followers,
-                "profile_image": user.profile_image,
                 "created_at": user.created_at.isoformat(),
-                "last_login": user.last_login.isoformat() if user.last_login else None
+                "updated_at": user.updated_at.isoformat() if user.updated_at else None
             }
         }
         
@@ -241,3 +231,4 @@ async def get_spotify_auth_url():
     except Exception as e:
         logger.error(f"Failed to generate Spotify OAuth URL: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to generate authorization URL")
+

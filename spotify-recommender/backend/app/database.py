@@ -36,8 +36,8 @@ class User(Base):
     id = Column(String, primary_key=True, index=True)  # Spotify user ID
     display_name = Column(String, nullable=True)
     email = Column(String, nullable=True)
-    access_token = Column(Text, nullable=False)  # Encrypted
-    refresh_token = Column(Text, nullable=False)  # Encrypted
+    access_token = Column(Text, nullable=True)  # Can be null initially
+    refresh_token = Column(Text, nullable=True)  # Can be null initially
     token_expires_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
@@ -85,15 +85,30 @@ class Playlist(Base):
     id = Column(String, primary_key=True, index=True)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
     mood = Column(String, nullable=False)
     genre = Column(String, nullable=True)
-    length = Column(Integer, nullable=False)
+    playlist_length = Column(Integer, nullable=False)
     seed_track_id = Column(String, nullable=True)
+    generated_at = Column(DateTime, default=func.now())
+    metrics = Column(Text, nullable=True)  # JSON string
     created_at = Column(DateTime, default=func.now())
+    
+    # Spotify integration fields
+    spotify_playlist_id = Column(String, nullable=True)
+    spotify_playlist_url = Column(String, nullable=True)
+    saved_to_spotify = Column(Boolean, default=False)
+    saved_at = Column(DateTime, nullable=True)
     
     # Relationships
     user = relationship("User", back_populates="playlists")
     tracks = relationship("PlaylistTrack", back_populates="playlist")
+    
+    def get_metrics(self):
+        """Get metrics as dictionary"""
+        if self.metrics:
+            return json.loads(self.metrics)
+        return {}
 
 # PlaylistTrack junction table
 class PlaylistTrack(Base):
@@ -102,7 +117,11 @@ class PlaylistTrack(Base):
     id = Column(Integer, primary_key=True, index=True)
     playlist_id = Column(String, ForeignKey("playlists.id"), nullable=False)
     track_id = Column(String, ForeignKey("tracks.id"), nullable=False)
+    track_name = Column(String, nullable=False)
+    artists = Column(String, nullable=False)
+    album = Column(String, nullable=False)
     position = Column(Integer, nullable=False)
+    spotify_uri = Column(String, nullable=True)
     similarity_score = Column(Integer, nullable=True)  # Store as integer (multiply by 1000)
     
     # Relationships
@@ -115,7 +134,20 @@ class UserTopTrack(Base):
     
     user_id = Column(String, ForeignKey("users.id"), primary_key=True)
     track_id = Column(String, ForeignKey("tracks.id"), primary_key=True)
+    spotify_track_id = Column(String, nullable=False)
+    name = Column(String, nullable=False)
+    artists = Column(String, nullable=False)
+    album = Column(String, nullable=False)
+    album_id = Column(String, nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+    popularity = Column(Integer, nullable=True)
+    external_urls = Column(Text, nullable=True)  # JSON string
+    uri = Column(String, nullable=True)
+    audio_features = Column(Text, nullable=True)  # JSON string
+    genres = Column(Text, nullable=True)  # JSON string
+    time_range = Column(String, nullable=True)
     rank = Column(Integer, nullable=True)
+    last_played = Column(DateTime, nullable=True)
     added_at = Column(DateTime, default=func.now())
 
 class UserSavedTrack(Base):
@@ -123,7 +155,19 @@ class UserSavedTrack(Base):
     
     user_id = Column(String, ForeignKey("users.id"), primary_key=True)
     track_id = Column(String, ForeignKey("tracks.id"), primary_key=True)
-    added_at = Column(DateTime, default=func.now())
+    spotify_track_id = Column(String, nullable=False)
+    name = Column(String, nullable=False)
+    artists = Column(String, nullable=False)
+    album = Column(String, nullable=False)
+    album_id = Column(String, nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+    popularity = Column(Integer, nullable=True)
+    external_urls = Column(Text, nullable=True)  # JSON string
+    uri = Column(String, nullable=True)
+    audio_features = Column(Text, nullable=True)  # JSON string
+    genres = Column(Text, nullable=True)  # JSON string
+    added_at = Column(DateTime, nullable=True)
+    last_accessed = Column(DateTime, nullable=True)
 
 # Cache model for storing Spotify data
 class Cache(Base):

@@ -10,11 +10,13 @@ const PlaylistGenerator = () => {
     mood: 'Energetic',
     genre: 'All Genres',
     playlist_length: PLAYLIST_LENGTH.DEFAULT,
-    seed_track: ''
+    seed_track: '',
+    playlist_name: ''
   })
   const [userTracks, setUserTracks] = useState([])
   const [generatedPlaylist, setGeneratedPlaylist] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [loadingTracks, setLoadingTracks] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -25,6 +27,8 @@ const PlaylistGenerator = () => {
   }, [isAuthenticated])
 
   const fetchUserTracks = async () => {
+    setLoadingTracks(true)
+    setError('')
     try {
       const response = await userAPI.getTracks()
       if (response.status === 200) {
@@ -36,6 +40,9 @@ const PlaylistGenerator = () => {
       }
     } catch (err) {
       console.error('Failed to fetch user tracks:', err)
+      setError('Failed to load your music library. Please try refreshing the page.')
+    } finally {
+      setLoadingTracks(false)
     }
   }
 
@@ -58,7 +65,8 @@ const PlaylistGenerator = () => {
         mood: formData.mood,
         genre: formData.genre === 'All Genres' ? null : formData.genre,
         playlist_length: formData.playlist_length,
-        seed_track: formData.seed_track || null
+        seed_track_id: formData.seed_track || null,
+        playlist_name: formData.playlist_name || null
       })
 
       if (response.status === 200) {
@@ -75,23 +83,52 @@ const PlaylistGenerator = () => {
     }
   }
 
-  const handleRegenerate = () => {
-    handleGeneratePlaylist()
+  const handleRegenerate = async () => {
+    if (!generatedPlaylist?.id) return
+
+    setLoading(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const response = await playlistAPI.regenerate(generatedPlaylist.id)
+      if (response.status === 200) {
+        setGeneratedPlaylist(response.data)
+        setSuccess('Playlist regenerated successfully!')
+      } else {
+        setError('Failed to regenerate playlist. Please try again.')
+      }
+    } catch (err) {
+      setError(err.response?.data?.detail || 'An error occurred while regenerating the playlist.')
+      console.error('Playlist regeneration error:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleSaveToSpotify = async () => {
     if (!generatedPlaylist?.id) return
 
+    setLoading(true)
+    setError('')
+    setSuccess('')
+
     try {
       const response = await playlistAPI.saveToSpotify(generatedPlaylist.id)
       if (response.status === 200) {
         setSuccess('Playlist saved to Spotify successfully!')
+        // Optionally open the Spotify playlist URL
+        if (response.data?.spotify_playlist_url) {
+          window.open(response.data.spotify_playlist_url, '_blank')
+        }
       } else {
         setError('Failed to save playlist to Spotify.')
       }
     } catch (err) {
-      setError('Failed to save playlist to Spotify.')
+      setError(err.response?.data?.detail || 'Failed to save playlist to Spotify.')
       console.error('Save to Spotify error:', err)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -122,6 +159,19 @@ const PlaylistGenerator = () => {
         <h2 className="text-2xl font-semibold mb-6">Playlist Settings</h2>
         
         <div className="grid md:grid-cols-2 gap-6">
+          {/* Playlist Name */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium mb-3">Playlist Name (Optional)</label>
+            <input
+              type="text"
+              name="playlist_name"
+              value={formData.playlist_name}
+              onChange={handleInputChange}
+              placeholder="Enter a custom name for your playlist"
+              className="input-field w-full"
+            />
+          </div>
+
           {/* Mood Selection */}
           <div>
             <label className="block text-sm font-medium mb-3">Mood</label>
@@ -182,19 +232,26 @@ const PlaylistGenerator = () => {
           {/* Seed Track */}
           <div>
             <label className="block text-sm font-medium mb-3">Seed Track (Optional)</label>
-            <select
-              name="seed_track"
-              value={formData.seed_track}
-              onChange={handleInputChange}
-              className="input-field w-full"
-            >
-              <option value="">No seed track</option>
-              {userTracks.slice(0, 20).map((track) => (
-                <option key={track.id} value={track.id}>
-                  {track.name} - {track.artists?.join(', ')}
-                </option>
-              ))}
-            </select>
+            {loadingTracks ? (
+              <div className="flex items-center space-x-2 text-gray-400">
+                <Loader className="w-4 h-4 animate-spin" />
+                <span>Loading your tracks...</span>
+              </div>
+            ) : (
+              <select
+                name="seed_track"
+                value={formData.seed_track}
+                onChange={handleInputChange}
+                className="input-field w-full"
+              >
+                <option value="">No seed track</option>
+                {userTracks.slice(0, 20).map((track) => (
+                  <option key={track.id} value={track.id}>
+                    {track.name} - {track.artists?.join(', ')}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
 
@@ -202,7 +259,7 @@ const PlaylistGenerator = () => {
         <div className="mt-8 text-center">
           <button
             onClick={handleGeneratePlaylist}
-            disabled={loading}
+            disabled={loading || loadingTracks || userTracks.length < 20}
             className="btn-primary text-lg px-8 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
@@ -217,6 +274,14 @@ const PlaylistGenerator = () => {
               </>
             )}
           </button>
+          
+          {/* Validation Message */}
+          {!loadingTracks && userTracks.length < 20 && (
+            <p className="text-sm text-yellow-400 mt-2">
+              You need at least 20 tracks in your library to generate playlists. 
+              You currently have {userTracks.length} tracks.
+            </p>
+          )}
         </div>
       </div>
 
@@ -241,17 +306,19 @@ const PlaylistGenerator = () => {
             <div className="space-x-3">
               <button
                 onClick={handleRegenerate}
-                className="btn-secondary flex items-center space-x-2"
+                disabled={loading}
+                className="btn-secondary flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <RefreshCw className="w-4 h-4" />
-                <span>Regenerate</span>
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                <span>{loading ? 'Processing...' : 'Regenerate'}</span>
               </button>
               <button
                 onClick={handleSaveToSpotify}
-                className="btn-primary flex items-center space-x-2"
+                disabled={loading}
+                className="btn-primary flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save className="w-4 h-4" />
-                <span>Save to Spotify</span>
+                <span>{loading ? 'Saving...' : 'Save to Spotify'}</span>
               </button>
             </div>
           </div>
@@ -260,11 +327,17 @@ const PlaylistGenerator = () => {
             {generatedPlaylist.tracks?.map((track, index) => (
               <div key={track.id} className="flex items-center space-x-4 p-3 bg-gray-700 rounded-lg">
                 <span className="text-lg font-bold text-spotify-green w-8">{index + 1}</span>
-                <img 
-                  src={track.album_art} 
-                  alt={track.album} 
-                  className="w-12 h-12 rounded"
-                />
+                <div className="w-12 h-12 rounded bg-gray-600 flex items-center justify-center">
+                  {track.album_art ? (
+                    <img 
+                      src={track.album_art} 
+                      alt={track.album} 
+                      className="w-12 h-12 rounded object-cover"
+                    />
+                  ) : (
+                    <Music className="w-6 h-6 text-gray-400" />
+                  )}
+                </div>
                 <div className="flex-1">
                   <h3 className="font-medium">{track.name}</h3>
                   <p className="text-gray-400">{track.artists?.join(', ')}</p>
@@ -283,7 +356,7 @@ const PlaylistGenerator = () => {
           </div>
 
           <div className="mt-6 pt-6 border-t border-gray-600">
-            <div className="grid md:grid-cols-3 gap-4 text-center">
+            <div className="grid md:grid-cols-4 gap-4 text-center">
               <div>
                 <p className="text-sm text-gray-400">Mood</p>
                 <p className="font-semibold">{generatedPlaylist.mood}</p>
@@ -296,7 +369,34 @@ const PlaylistGenerator = () => {
                 <p className="text-sm text-gray-400">Length</p>
                 <p className="font-semibold">{generatedPlaylist.tracks?.length || 0} songs</p>
               </div>
+              <div>
+                <p className="text-sm text-gray-400">Generated</p>
+                <p className="font-semibold">{new Date(generatedPlaylist.generated_at).toLocaleDateString()}</p>
+              </div>
             </div>
+            
+            {/* Playlist Metrics */}
+            {generatedPlaylist.metrics && (
+              <div className="mt-4 pt-4 border-t border-gray-600">
+                <h4 className="text-sm font-medium text-gray-400 mb-2">Recommendation Quality</h4>
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  {generatedPlaylist.metrics.average_similarity && (
+                    <div>
+                      <p className="text-xs text-gray-500">Avg Similarity</p>
+                      <p className="text-sm font-semibold">
+                        {(generatedPlaylist.metrics.average_similarity * 100).toFixed(1)}%
+                      </p>
+                    </div>
+                  )}
+                  {generatedPlaylist.metrics.tracks_found && (
+                    <div>
+                      <p className="text-xs text-gray-500">Tracks Found</p>
+                      <p className="text-sm font-semibold">{generatedPlaylist.metrics.tracks_found}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

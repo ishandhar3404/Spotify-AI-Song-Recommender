@@ -79,6 +79,7 @@ class PlaylistGenerateRequest(BaseModel):
     genre: Optional[Genre] = Genre.ALL_GENRES
     playlist_length: int = Field(..., ge=5, le=50)
     seed_track_id: Optional[str] = None
+    playlist_name: Optional[str] = None
 
     @validator('playlist_length')
     def validate_playlist_length(cls, v):
@@ -96,7 +97,7 @@ class PlaylistBase(BaseModel):
     created_at: datetime
 
 class Playlist(BaseModel):
-    id: int
+    id: str
     name: str
     description: Optional[str] = None
     mood: str
@@ -125,10 +126,12 @@ class SpotifyAuthResponse(BaseModel):
     state: str
 
 class SpotifyCallbackResponse(BaseModel):
+    success: bool
+    message: str
+    user_id: int
+    display_name: str
     access_token: str
-    refresh_token: str
-    expires_in: int
-    user: User
+    expires_at: str
 
 # Error schemas
 class ErrorResponse(BaseModel):

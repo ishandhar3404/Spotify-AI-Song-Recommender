@@ -155,8 +155,8 @@ const Dashboard = () => {
           <div className="bg-orange-600 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-3">
             <Users className="w-6 h-6 text-white" />
           </div>
-          <h3 className="text-2xl font-bold mb-1">{profile?.followers || 0}</h3>
-          <p className="text-gray-400">Followers</p>
+          <h3 className="text-2xl font-bold mb-1">{totalTracks}</h3>
+          <p className="text-gray-400">Total Tracks</p>
         </div>
       </div>
 
@@ -172,14 +172,12 @@ const Dashboard = () => {
             {tracks?.top_tracks?.slice(0, 5).map((track, index) => (
               <div key={track.id} className="flex items-center space-x-3 p-2 rounded hover:bg-gray-700">
                 <span className="text-sm text-gray-400 w-6">{index + 1}</span>
-                <img 
-                  src={track.album_art} 
-                  alt={track.album} 
-                  className="w-10 h-10 rounded"
-                />
+                <div className="w-10 h-10 bg-gray-600 rounded flex items-center justify-center">
+                  <Music className="w-5 h-5 text-gray-400" />
+                </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{track.name}</p>
-                  <p className="text-sm text-gray-400 truncate">{track.artists?.join(', ')}</p>
+                  <p className="text-sm text-gray-400 truncate">{Array.isArray(track.artists) ? track.artists.join(', ') : track.artists}</p>
                 </div>
               </div>
             ))}
@@ -197,14 +195,12 @@ const Dashboard = () => {
               <p className="text-sm text-gray-300">Connected to Spotify</p>
               <p className="text-xs text-gray-500">Just now</p>
             </div>
-            {profile?.last_login && (
-              <div className="p-3 bg-gray-700 rounded">
-                <p className="text-sm text-gray-300">Last login</p>
-                <p className="text-xs text-gray-500">
-                  {new Date(profile.last_login).toLocaleDateString()}
-                </p>
-              </div>
-            )}
+            <div className="p-3 bg-gray-700 rounded">
+              <p className="text-sm text-gray-300">Account created</p>
+              <p className="text-xs text-gray-500">
+                {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'Recently'}
+              </p>
+            </div>
           </div>
         </div>
       </div>

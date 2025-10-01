@@ -36,7 +36,7 @@ class SpotifyService:
                         "user-library-read",
                         "playlist-read-private",
                         "playlist-modify-public",
-                        "playlist-modify-private"
+                        "playlist-modify-private",
                     ])
                 )
             )
@@ -64,7 +64,7 @@ class SpotifyService:
                     "user-library-read",
                     "playlist-read-private",
                     "playlist-modify-public",
-                    "playlist-modify-private"
+                    "playlist-modify-private",
                 ])
             )
             return auth_manager.get_authorize_url()
@@ -94,7 +94,7 @@ class SpotifyService:
                     "user-library-read",
                     "playlist-read-private",
                     "playlist-modify-public",
-                    "playlist-modify-private"
+                    "playlist-modify-private",
                 ])
             )
             
@@ -105,7 +105,7 @@ class SpotifyService:
                 raise Exception("Failed to get access token")
             
             # Calculate expiration time
-            expires_at = datetime.now() + timedelta(seconds=token_info.get('expires_in', 3600))
+            expires_at = datetime.utcnow() + timedelta(seconds=token_info.get('expires_in', 3600))
             
             return {
                 'access_token': token_info['access_token'],
@@ -140,7 +140,7 @@ class SpotifyService:
                     "user-library-read",
                     "playlist-read-private",
                     "playlist-modify-public",
-                    "playlist-modify-private"
+                    "playlist-modify-private",
                 ])
             )
             
@@ -151,7 +151,7 @@ class SpotifyService:
                 raise Exception("Failed to refresh access token")
             
             # Calculate expiration time
-            expires_at = datetime.now() + timedelta(seconds=token_info.get('expires_in', 3600))
+            expires_at = datetime.utcnow() + timedelta(seconds=token_info.get('expires_in', 3600))
             
             return {
                 'access_token': token_info['access_token'],
@@ -210,7 +210,7 @@ class SpotifyService:
             time_range: Time range for top tracks (short_term, medium_term, long_term)
             
         Returns:
-            List of top tracks with audio features
+            List of top tracks (audio features are optional and won't block retrieval)
         """
         try:
             self._set_access_token(access_token)
@@ -218,13 +218,9 @@ class SpotifyService:
             # Get top tracks
             top_tracks = self.sp.current_user_top_tracks(limit=limit, time_range=time_range)
             
-            # Get audio features for all tracks
-            track_ids = [track['id'] for track in top_tracks['items']]
-            audio_features = self.sp.audio_features(track_ids)
-            
-            # Combine track info with audio features
+            # Combine track info (skip audio features for now to avoid 403 errors)
             enriched_tracks = []
-            for i, track in enumerate(top_tracks['items']):
+            for track in top_tracks['items']:
                 track_data = {
                     'id': track['id'],
                     'name': track['name'],
@@ -235,29 +231,13 @@ class SpotifyService:
                     'duration_ms': track['duration_ms'],
                     'popularity': track['popularity'],
                     'external_urls': track['external_urls'],
-                    'uri': track['uri']
+                    'uri': track['uri'],
+                    'genres': []  # Skip genre fetching for now to avoid additional API calls
                 }
-                
-                # Add audio features if available
-                if audio_features and i < len(audio_features) and audio_features[i]:
-                    track_data.update(audio_features[i])
-                
-                # Get genres for the track's artists
-                artist_ids = [artist['id'] for artist in track['artists']]
-                if artist_ids:
-                    try:
-                        artists = self.sp.artists(artist_ids)
-                        all_genres = []
-                        for artist in artists['artists']:
-                            all_genres.extend(artist.get('genres', []))
-                        track_data['genres'] = list(set(all_genres))
-                    except Exception as e:
-                        logger.warning(f"Failed to get genres for track {track['id']}: {str(e)}")
-                        track_data['genres'] = []
                 
                 enriched_tracks.append(track_data)
             
-            logger.info(f"Retrieved {len(enriched_tracks)} top tracks with audio features")
+            logger.info(f"Retrieved {len(enriched_tracks)} top tracks for user")
             return enriched_tracks
             
         except Exception as e:
@@ -273,7 +253,7 @@ class SpotifyService:
             limit: Number of tracks to retrieve (max 50)
             
         Returns:
-            List of saved tracks with audio features
+            List of saved tracks (audio features are optional and won't block retrieval)
         """
         try:
             self._set_access_token(access_token)
@@ -281,13 +261,9 @@ class SpotifyService:
             # Get saved tracks
             saved_tracks = self.sp.current_user_saved_tracks(limit=limit)
             
-            # Get audio features for all tracks
-            track_ids = [item['track']['id'] for item in saved_tracks['items']]
-            audio_features = self.sp.audio_features(track_ids)
-            
-            # Combine track info with audio features
+            # Combine track info (skip audio features for now to avoid 403 errors)
             enriched_tracks = []
-            for i, item in enumerate(saved_tracks['items']):
+            for item in saved_tracks['items']:
                 track = item['track']
                 track_data = {
                     'id': track['id'],
@@ -300,29 +276,13 @@ class SpotifyService:
                     'popularity': track['popularity'],
                     'external_urls': track['external_urls'],
                     'uri': track['uri'],
-                    'added_at': item['added_at']
+                    'added_at': item['added_at'],
+                    'genres': []  # Skip genre fetching for now to avoid additional API calls
                 }
-                
-                # Add audio features if available
-                if audio_features and i < len(audio_features) and audio_features[i]:
-                    track_data.update(audio_features[i])
-                
-                # Get genres for the track's artists
-                artist_ids = [artist['id'] for artist in track['artists']]
-                if artist_ids:
-                    try:
-                        artists = self.sp.artists(artist_ids)
-                        all_genres = []
-                        for artist in artists['artists']:
-                            all_genres.extend(artist.get('genres', []))
-                        track_data['genres'] = list(set(all_genres))
-                    except Exception as e:
-                        logger.warning(f"Failed to get genres for track {track['id']}: {str(e)}")
-                        track_data['genres'] = []
                 
                 enriched_tracks.append(track_data)
             
-            logger.info(f"Retrieved {len(enriched_tracks)} saved tracks with audio features")
+            logger.info(f"Retrieved {len(enriched_tracks)} saved tracks for user")
             return enriched_tracks
             
         except Exception as e:
@@ -333,8 +293,10 @@ class SpotifyService:
         """
         Get audio features for specific tracks.
         
+        Note: Audio features API requires user authentication, not client credentials.
+        
         Args:
-            access_token: Valid access token
+            access_token: Valid user access token (not client credentials)
             track_ids: List of Spotify track IDs
             
         Returns:
@@ -356,7 +318,9 @@ class SpotifyService:
             
         except Exception as e:
             logger.error(f"Failed to get track audio features: {str(e)}")
-            raise
+            # Don't raise - audio features are optional for recommendations
+            logger.warning("Audio features unavailable - continuing without them")
+            return []
     
     def get_track_genres(self, access_token: str, track_ids: List[str]) -> List[Dict]:
         """

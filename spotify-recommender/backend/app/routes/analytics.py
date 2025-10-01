@@ -221,6 +221,8 @@ async def get_user_statistics(
         logger.error(f"Error getting user statistics: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to get user statistics")
 
+@router.get("/performance")
+@router.get("/system")
 @router.get("/system-performance")
 async def get_system_performance(
     request: Request,

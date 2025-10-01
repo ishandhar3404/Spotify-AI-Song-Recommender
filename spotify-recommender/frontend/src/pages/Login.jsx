@@ -20,35 +20,45 @@ const Login = () => {
 
   // Handle OAuth callback
   useEffect(() => {
-    const code = searchParams.get('code')
-    if (code) {
-      handleSpotifyCallback(code)
+    const success = searchParams.get('success')
+    const userId = searchParams.get('user_id')
+    const accessToken = searchParams.get('access_token')
+    const error = searchParams.get('error')
+    
+    if (success === 'true' && userId && accessToken) {
+      handleSpotifyCallbackSuccess(userId, accessToken)
+    } else if (success === 'false' || error) {
+      handleSpotifyCallbackError(error || 'Authentication failed')
     }
   }, [searchParams])
 
-  const handleSpotifyCallback = async (code) => {
+  const handleSpotifyCallbackSuccess = (userId, accessToken) => {
     setIsLoading(true)
     setError('')
     
     try {
-      const response = await fetch(authAPI.spotifyCallback(code))
-      if (response.ok) {
-        const data = await response.json()
-        login(data.user, {
-          access_token: data.access_token,
-          refresh_token: data.refresh_token
-        })
-        navigate('/dashboard')
-      } else {
-        const errorData = await response.json()
-        setError(errorData.detail || 'Authentication failed')
+      // Create a mock user object for the auth context
+      const user = {
+        id: userId,
+        display_name: 'Spotify User', // We'll get this from the backend later
+        access_token: accessToken
       }
+      
+      login(user, {
+        access_token: accessToken
+      })
+      navigate('/dashboard')
     } catch (err) {
-      setError('Network error. Please try again.')
+      setError('Failed to complete authentication')
       console.error('Auth callback error:', err)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleSpotifyCallbackError = (errorMessage) => {
+    setError(errorMessage)
+    setIsLoading(false)
   }
 
   const handleSpotifyLogin = () => {
@@ -56,7 +66,9 @@ const Login = () => {
     setError('')
     
     // Redirect to Spotify OAuth
-    window.location.href = authAPI.spotifyLogin()
+    const loginUrl = `${import.meta.env.VITE_API_BASE_URL}/auth/spotify/login`
+    console.log('Redirecting to:', loginUrl)
+    window.location.href = loginUrl
   }
 
   if (isLoading) {
@@ -94,14 +106,13 @@ const Login = () => {
 
         <div className="space-y-6">
           <div className="text-center">
-            <button
-              onClick={handleSpotifyLogin}
-              disabled={isLoading}
+            <a
+              href={authAPI.spotifyLogin()}
               className="w-full btn-primary text-lg py-3 flex items-center justify-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Music className="w-5 h-5" />
               <span>Continue with Spotify</span>
-            </button>
+            </a>
           </div>
 
           <div className="text-center">
