@@ -4,6 +4,7 @@ import Header from './components/Header'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import SongMix from './pages/SongMix'
 import PlaylistGenerator from './pages/PlaylistGenerator'
 import { AuthProvider } from './contexts/AuthContext'
 import './App.css'
@@ -20,7 +21,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/auth/callback" element={<Login />} />
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/generate" element={<PlaylistGenerator />} />
+              <Route path="/generate" element={<SongMix />} /><Route path="/generate/mood" element={<PlaylistGenerator />} />
             </Routes>
           </main>
         </div>

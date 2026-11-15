@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '../services/api'
 import React, { createContext, useContext, useState, useEffect } from 'react'
 
 const AuthContext = createContext()
@@ -23,7 +24,7 @@ export const AuthProvider = ({ children }) => {
         const userId = localStorage.getItem('user_id')
         if (token && userId) {
           // Verify token with backend
-          const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/status`, {
+          const response = await fetch(`${API_BASE_URL}/auth/status`, {
             headers: {
               'X-User-ID': userId,
               'Authorization': `Bearer ${token}`

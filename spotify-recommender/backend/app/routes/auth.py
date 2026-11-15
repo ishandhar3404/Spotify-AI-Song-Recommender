@@ -89,7 +89,7 @@ async def spotify_callback(code: Optional[str] = None, state: Optional[str] = No
         from urllib.parse import quote
         logger.info(f"User ID for redirect: {user.id} (type: {type(user.id)})")
         frontend_url = f"{settings.ALLOWED_ORIGINS[0]}/auth/callback?success=true&user_id={quote(str(user.id))}&access_token={token_info['access_token']}"
-        logger.info(f"Redirecting to: {frontend_url}")
+        logger.info("Spotify authorization completed")
         return RedirectResponse(url=frontend_url)
         
     except HTTPException:

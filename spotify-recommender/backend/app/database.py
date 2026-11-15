@@ -187,3 +187,10 @@ class Cache(Base):
     def is_expired(self):
         """Check if cache entry is expired"""
         return datetime.utcnow() > self.expires_at
+
+class AudioRecording(Base):
+    __tablename__ = "audio_recordings"
+    user_id = Column(String, ForeignKey("users.id"), primary_key=True)
+    track_id = Column(String, primary_key=True)
+    metadata_json = Column(Text, nullable=False)
+    features_json = Column(Text, nullable=False)

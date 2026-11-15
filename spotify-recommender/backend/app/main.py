@@ -9,7 +9,7 @@ from .database import engine, Base
 from .config import settings
 
 # Import route modules
-from .routes import auth, user, playlist, analytics
+from .routes import auth, user, playlist, analytics, song_mix
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -43,6 +43,7 @@ app.add_middleware(
 )
 
 # Include all route modules
+app.include_router(song_mix.router, prefix="/api/playlists")
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(user.router, prefix="/api/user", tags=["User"])
 app.include_router(playlist.router, prefix="/api/playlists", tags=["Playlists"])
@@ -79,3 +80,4 @@ if __name__ == "__main__":
         reload=True,
         log_level="info"
     )
+

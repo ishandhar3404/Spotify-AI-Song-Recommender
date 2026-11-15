@@ -16,7 +16,7 @@ const Home = () => {
           </h1>
           <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-2xl mx-auto">
             AI-powered playlist generation using your Spotify listening history. 
-            Get personalized recommendations based on mood, genre, and your unique taste.
+            Discover tracks from the songs you choose.
           </p>
           
           {isAuthenticated ? (
@@ -75,9 +75,9 @@ const Home = () => {
               <div className="bg-spotify-green rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
                 <Heart className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-xl font-semibold mb-2">Choose Your Mood</h3>
+              <h3 className="text-xl font-semibold mb-2">Pick Your Starting Songs</h3>
               <p className="text-gray-300">
-                Select from 8 different moods to match your current vibe
+                Choose up to five tracks to shape your mix
               </p>
             </div>
             

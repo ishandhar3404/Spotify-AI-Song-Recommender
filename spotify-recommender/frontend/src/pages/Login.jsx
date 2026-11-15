@@ -66,7 +66,7 @@ const Login = () => {
     setError('')
     
     // Redirect to Spotify OAuth
-    const loginUrl = `${import.meta.env.VITE_API_BASE_URL}/auth/spotify/login`
+    const loginUrl = authAPI.spotifyLogin()
     console.log('Redirecting to:', loginUrl)
     window.location.href = loginUrl
   }

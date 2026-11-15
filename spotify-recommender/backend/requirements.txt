@@ -14,3 +14,4 @@ spotipy
 pydantic==2.5.0
 pydantic-settings==2.1.0
 aiofiles==23.2.1
+soundfile==0.13.1
